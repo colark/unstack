@@ -28,6 +28,5 @@ process.on('message', async ({ name, info, fullRebuild }) => {
     const newContext = await handleServiceWithContext(context)(info, shouldRebuild);
     contextStore.write(newContext);
   }
-
-  process.send({command: 'done'});
+  process.send({command: 'done'})
 });

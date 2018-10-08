@@ -121,7 +121,7 @@ module.exports = ({ name, environment, options = {} }) => async () => {
           thread.on('message', message => {
             if (message.command == 'done') {
               remainingServices.delete(dotName) && inProgressServices.delete(dotName)
-              enableWatcher(dotName, thread)
+              context.command.name == "start" ? enableWatcher(dotName, thread) : thread.kill();
             }
           });
           thread.send({name: dotName, info: serviceInfo, fullRebuild: true});
