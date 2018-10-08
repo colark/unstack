@@ -8,8 +8,13 @@ var cleanExit = function() { process.exit() };
 process.on('SIGINT', cleanExit); // catch ctrl-c
 process.on('SIGTERM', cleanExit); // catch kill
 
-require('yargs')
-  .commandDir('commands')
-  .demandCommand()
-  .help()
-  .argv
+try {
+  require('yargs')
+    .commandDir('commands')
+    .demandCommand()
+    .help()
+    .argv
+} catch(e) {
+  console.log(e.message)
+  console.trace();
+}

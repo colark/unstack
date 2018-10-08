@@ -1,6 +1,6 @@
 {
   "name": "unstack",
-  "version": "0.0.5",
+  "version": "0.0.7",
   "description": "",
   "preferGlobal": true,
   "bin": {
@@ -24,7 +24,11 @@
     "babel-preset-env": "^1.7.0",
     "babel-preset-react": "^6.24.1",
     "babel-runtime": "^6.26.0",
+    "chokidar": "^2.0.4",
+    "folder-hash": "^2.1.1",
     "lodash": "^4.17.10",
+    "mkdirp": "^0.5.1",
+    "threads": "^0.12.0",
     "yargs": "^12.0.1"
   },
   "devDependencies": {

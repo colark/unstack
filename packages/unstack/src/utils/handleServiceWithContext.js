@@ -5,7 +5,7 @@ const path = require("path");
 const fs = require("fs");
 const resolveLocalPath = require('./resolveLocalPath');
 
-const handleServiceWithContext = context => async ({ definition, location }) => {
+const handleServiceWithContext = context => async ({ definition, location }, shouldRebuild) => {
   let serviceDotName;
 
   const outputProgressInfo = (...toLog) => {
@@ -102,7 +102,8 @@ const handleServiceWithContext = context => async ({ definition, location }) => 
           handler: {
             name: handlerName,
             location: packageLocation
-          }
+          },
+          shouldRebuild
         }
 
         if (wrappedComponent.provideContext) {
@@ -125,7 +126,7 @@ const handleServiceWithContext = context => async ({ definition, location }) => 
             outputKeys.forEach(key => outputProgressInfo(key, ":", outputs[key]));
           }
         }
-        resolve();
+        resolve(context);
       }
     }
   })
