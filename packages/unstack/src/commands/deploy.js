@@ -14,7 +14,8 @@ exports.handler = function (argv) {
     name: COMMAND_NAME,
     environment: (argv.environment && argv.environment.length > 0) ? argv.environment : 'development',
     options: {
-      branch: argv.b
+      branch: argv.b,
+      only: argv.only ? argv.only.split(',') : []
     }
   })
 

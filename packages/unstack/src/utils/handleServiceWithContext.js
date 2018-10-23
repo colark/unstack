@@ -88,47 +88,54 @@ const handleServiceWithContext = context => async ({ definition, location }, sho
       const success = await installDependenciesForPackage(componentLocation);
       outputProgressInfo(`Component dependencies installed ${success ? 'successfully' : 'unsuccessfully'}.`)
       if (success || !componentLocation) {
-        handler = require(packageLocation);
-        const component = componentLocation ? require(componentLocation).default : {};
-        outputProgressInfo(`LOADED COMPONENT`)
-        //wrap component
-        const wrappedComponent = handler.wrapComponent(component, context);
+        try {
+          handler = require(packageLocation);
+          const component = componentLocation ? await require(componentLocation).default : {};
+          outputProgressInfo(`LOADED COMPONENT`)
+          //wrap component
+          const wrappedComponent = handler.wrapComponent(component, context);
 
-        const commandConfig = {
-          service: {
-            name: serviceDotName,
-            location: location,
-          },
-          handler: {
-            name: handlerName,
-            location: packageLocation
-          },
-          shouldRebuild
-        }
-
-        if (wrappedComponent.provideContext) {
-          const serviceContext = await wrappedComponent.provideContext(commandConfig);
-          mergeServiceContext(serviceContext)
-        }
-
-        if (wrappedComponent[context.command.name]) {
-          outputProgressInfo(`running handler defined command`)
-          if (!context.services[serviceDotName]) {
-            context.services[serviceDotName] = {};
+          const commandConfig = {
+            service: {
+              name: serviceDotName,
+              location: location,
+            },
+            handler: {
+              name: handlerName,
+              location: packageLocation
+            },
+            shouldRebuild
           }
-          context.services[serviceDotName].outputs = await wrappedComponent[context.command.name](commandConfig);
 
-          const outputs = context.services[serviceDotName].outputs || {};
-          // print Outputs
-          const outputKeys = Object.keys(outputs);
-          if (outputKeys.length) {
-            outputProgressInfo(`**** Outputs ****`);
-            outputKeys.forEach(key => outputProgressInfo(key, ":", outputs[key]));
+          if (wrappedComponent.provideContext) {
+            const serviceContext = await wrappedComponent.provideContext(commandConfig);
+            mergeServiceContext(serviceContext)
           }
+
+          if (wrappedComponent[context.command.name]) {
+            outputProgressInfo(`running handler defined command`)
+            if (!context.services[serviceDotName]) {
+              context.services[serviceDotName] = {};
+            }
+            context.services[serviceDotName].outputs = await wrappedComponent[context.command.name](commandConfig);
+
+            const outputs = context.services[serviceDotName].outputs || {};
+            // print Outputs
+            const outputKeys = Object.keys(outputs);
+            if (outputKeys.length) {
+              outputProgressInfo(`**** Outputs ****`);
+              outputKeys.forEach(key => outputProgressInfo(key, ":", outputs[key]));
+            }
+          }
+          resolve(context);
+        } catch(e) {
+          console.log(e);
+          console.trace();
         }
-        resolve(context);
       }
     }
+  }).catch((e) => {
+    console.trace()
   })
 }
 

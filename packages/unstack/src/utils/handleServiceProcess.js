@@ -1,6 +1,6 @@
-require("babel-register")({
-  presets: ['env', 'react'],
-  plugins: ['transform-object-rest-spread', 'transform-runtime']
+require("@babel/register")({
+  presets: ['@babel/env', '@babel/react'],
+  plugins: ['@babel/plugin-proposal-object-rest-spread', '@babel/plugin-transform-runtime', "@babel/plugin-proposal-class-properties"]
 });
 
 const { hashElement } = require('folder-hash');
@@ -28,5 +28,5 @@ process.on('message', async ({ name, info, fullRebuild }) => {
     const newContext = await handleServiceWithContext(context)(info, shouldRebuild);
     contextStore.write(newContext);
   }
-  process.send({command: 'done'})
+  process.send({command: 'done'});
 });

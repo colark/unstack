@@ -41,16 +41,22 @@ module.exports = ({ name, environment, options = {} }) => async () => {
       name: options.branch
     };
   };
+
+  const toDotName = service => service.location.split('/').join(".")
+
   //iterate through services and load handler and component
   const handleService = handleServiceWithContext(context);
   const contextService = services.find(({ definition }) => definition.type == "context");
   if (contextService) {
       await handleService(contextService);
   }
-  const nonContextServices = services.filter(({ definition }) => definition.type != "context");
+  let nonContextServices = services.filter(({ definition }) => definition.type != "context");
+  console.log(options.only);
+  if (options.only && options.only.length > 0) {
+    nonContextServices = nonContextServices.filter((service) => options.only.indexOf(toDotName(service)) != -1)
+  }
 
   const servicesByDependency = nonContextServices.sort((left, right) => {
-    const toDotName = service => right.location.split('/').join(".")
     if (left.depends_on && left.depends_on.indexOf(toDotName(right)) != -1) {
       return -1;
     } else {
@@ -134,7 +140,7 @@ module.exports = ({ name, environment, options = {} }) => async () => {
         }, 1000)
       };
       resolve();
-    })
+    }).catch((e) => console.log(e))
 
   }
   await pollForCompletion();
