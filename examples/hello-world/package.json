@@ -1,0 +1,10 @@
+{
+  "name": "hello-world",
+  "version": "0.0.1",
+  "description": "hello world example for using Unstack",
+  "dependencies": {
+    "unstack": "^0.0.11",
+    "unstack-env-context": "^0.0.1"
+  },
+  "devDependencies": {}
+}
