@@ -1,11 +1,10 @@
-const collectServices = (serviceDefinitions, parent = '') => {
+const collectServices = (serviceDefinitions, parent = "") => {
   let services = [];
   for (const serviceName in serviceDefinitions) {
     const definition = serviceDefinitions[serviceName];
     if (definition.handler) {
       let location;
-      if (definition.type && definition.type == 'context') {
-
+      if (definition.type && definition.type == "context") {
       } else {
         location = `${parent}/${serviceName}`;
       }
@@ -13,7 +12,7 @@ const collectServices = (serviceDefinitions, parent = '') => {
     } else {
       services = services.concat(collectServices(definition, serviceName));
     }
-  };
+  }
   return services;
 };
 

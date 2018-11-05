@@ -1,17 +1,17 @@
-const buildBaseCommand = require('../utils/buildBaseCommand');
+const buildBaseCommand = require("../utils/buildBaseCommand");
 
-const COMMAND_NAME = 'install'
+const COMMAND_NAME = "install";
 
-exports.command = COMMAND_NAME
-exports.desc = 'Install dependencies for an unstack'
+exports.command = COMMAND_NAME;
+exports.desc = "Install dependencies for an unstack";
 exports.builder = {
   dir: {
-    default: '.'
+    default: "."
   }
-}
-exports.handler = function (argv) {
+};
+exports.handler = function(argv) {
   const command = buildBaseCommand({
     name: COMMAND_NAME
-  })
+  });
   command();
-}
+};
