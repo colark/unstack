@@ -37,7 +37,11 @@ const handleServiceWithContext = context => async (
     const handlerHelper = new HandlerHelper({
       handlerName,
       serviceDotName,
-      shouldInstall
+      shouldInstall,
+      environmentName: context.environment.name,
+      branchName: context.branch.name,
+      contextObject: context,
+      componentLocation: location
     });
 
     const [handler, handlerLocation] = await handlerHelper.resolveHandler();
@@ -48,8 +52,11 @@ const handleServiceWithContext = context => async (
         definition,
         location
       });
+
+      handlerHelper.buildWorkingDirectory();
+      handlerHelper.mergeDependencies();
       //wrap component
-      const wrappedComponent = handler.wrapComponent(component, context);
+      const wrappedComponent = handler.wrapComponent(handlerHelper);
 
       const commandConfig = {
         service: {

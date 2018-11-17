@@ -1,6 +1,6 @@
 {
   "name": "unstack",
-  "version": "0.0.11",
+  "version": "0.0.12-alpha.1",
   "description": "",
   "preferGlobal": true,
   "bin": {
@@ -12,6 +12,9 @@
   "scripts": {
     "test": "jest",
     "build": "babel src -d dist"
+  },
+  "jest": {
+    "setupTestFrameworkScriptFile": "./testSetup.js"
   },
   "author": "",
   "license": "ISC",

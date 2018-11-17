@@ -6,66 +6,16 @@ const fs = require("fs");
 const yaml = require("write-yaml");
 const { hashElement } = require("folder-hash");
 
-const wrapComponent = (component, context) => {
+const wrapComponent = helper => {
+  const context = helper.getContext();
+  const serviceDescriptor = helper.getServiceDescriptor();
+  const serviceName = helper.getServiceName();
   return {
     start: async config => {
-      const serviceName = config.service.name;
-
+      const component = await helper.getComponent();
       const handlerLocation = config.handler.location;
       const componentLocation = `./${config.service.location}`;
-      const appFolder = `./.unstack/tmp/artifacts/start/${serviceName}`;
-
-      //build tmp docker app folder
-      const buildBundleFolderCommand = `mkdir -p ${appFolder}`;
-      const buildBundleFolder = await exec(buildBundleFolderCommand, {
-        cwd: process.cwd()
-      });
-
-      await exec(`cp -R ${handlerLocation}/* ${appFolder}`, {
-        cwd: process.cwd()
-      });
-
-      await exec(`cp -R ${handlerLocation}/.babelrc ${appFolder}/.babelrc`, {
-        cwd: process.cwd()
-      });
-
-      await exec(`rm -rf ${appFolder}/component`, { cwd: process.cwd() });
-      await exec(`cp -rf ${componentLocation}/. ${appFolder}/component`, {
-        cwd: process.cwd()
-      });
-
-      const handlerPackageJson = JSON.parse(
-        fs.readFileSync(handlerLocation + "/package.json", {
-          encoding: "utf-8"
-        })
-      );
-
-      // to get es6 goodness via babel
-      const serviceDependencies = JSON.parse(
-        fs.readFileSync(handlerLocation + "/service-dependencies.json", {
-          encoding: "utf-8"
-        })
-      );
-
-      const componentPackageJson = JSON.parse(
-        fs.readFileSync(componentLocation + "/package.json", {
-          encoding: "utf-8"
-        })
-      );
-
-      // merge package.json dependencies in place with handler dependencies
-      componentPackageJson.dependencies = Object.assign(
-        {},
-        handlerPackageJson.dependencies,
-        componentPackageJson.dependencies,
-        serviceDependencies
-      );
-
-      fs.writeFileSync(
-        appFolder + "/package.json",
-        JSON.stringify(componentPackageJson),
-        "utf-8"
-      );
+      const appFolder = helper.getWorkingDirectoryPath();
 
       try {
         const babelFile = await exec("parcel build entry.unstack.js", {
@@ -78,11 +28,8 @@ const wrapComponent = (component, context) => {
         console.log(e);
       }
 
-      const HEADER_FRAGMENT = fs.readFileSync(
-        appFolder + "/component/layout/_header.html",
-        {
-          encoding: "utf-8"
-        }
+      const HEADER_FRAGMENT = helper.readFromWorkDir(
+        "component/layout/_header.html"
       );
 
       try {
@@ -107,64 +54,10 @@ const wrapComponent = (component, context) => {
         );
 
         const serviceName = config.service.name;
-        const awsAccountId = context.secrets.AWS_ACCOUNT_ID;
-        const awsRegion = context.secrets.AWS_REGION;
 
         const handlerLocation = config.handler.location;
         const componentLocation = `./${config.service.location}`;
-        const appFolder = `./.unstack/tmp/artifacts/deploy/${serviceName}`;
-
-        const buildAppFolderCommand = `mkdir -p ${appFolder}`;
-        const buildAppFolder = await exec(buildAppFolderCommand, {
-          cwd: process.cwd()
-        });
-
-        await exec(`cp -R ${handlerLocation}/* ${appFolder}`, {
-          cwd: process.cwd()
-        });
-
-        await exec(`cp ${handlerLocation}/.babelrc ${appFolder}`, {
-          cwd: process.cwd()
-        });
-
-        await exec(`rm -rf ${appFolder}/component`, { cwd: process.cwd() });
-        await exec(`cp -rf ${componentLocation}/. ${appFolder}/component`, {
-          cwd: process.cwd()
-        });
-
-        const handlerPackageJson = JSON.parse(
-          fs.readFileSync(handlerLocation + "/package.json", {
-            encoding: "utf-8"
-          })
-        );
-
-        // to get es6 goodness via babel
-        const serviceDependencies = JSON.parse(
-          fs.readFileSync(handlerLocation + "/service-dependencies.json", {
-            encoding: "utf-8"
-          })
-        );
-
-        const componentPackageJson = JSON.parse(
-          fs.readFileSync(componentLocation + "/package.json", {
-            encoding: "utf-8"
-          })
-        );
-
-        // merge package.json dependencies in place with handler dependencies
-        componentPackageJson.dependencies = Object.assign(
-          {},
-          handlerPackageJson.dependencies,
-          componentPackageJson.dependencies,
-          serviceDependencies
-        );
-
-        fs.writeFileSync(
-          appFolder + "/package.json",
-          JSON.stringify(componentPackageJson),
-          "utf-8"
-        );
-
+        const appFolder = helper.getWorkingDirectoryPath();
         // BEGIN fill in Dockfile
         const dockerfileString = fs.readFileSync(
           handlerLocation + "/Dockerfile",
@@ -212,11 +105,7 @@ const wrapComponent = (component, context) => {
           return result.replace(`{{${variable.key}}}`, `"${variable.value}"`);
         }, dockerfileString);
 
-        fs.writeFileSync(
-          appFolder + "/Dockerfile",
-          evaluatedDockerfileString,
-          "utf-8"
-        );
+        helper.writeToWorkDir("Dockerfile", evaluatedDockerfileString);
         // END fill in Dockerfile
 
         // BEGIN ORCHESTRATION
@@ -274,21 +163,12 @@ const wrapComponent = (component, context) => {
           { cwd: appFolder, maxBuffer: 1024 * 500 }
         );
 
-        const ebEnvironment = `${serviceName.split(".").join("")}-${
-          context.environment.name == "review"
-            ? context.branch.name.split("-").join("")
-            : context.environment.name
-        }`
-          .replace(/_/, "")
-          .replace(/\//g, "")
-          .replace(/\$/, "")
-          .replace(/@/, "")
-          .substring(0, 38);
+        // start runtime stuff
 
         const ebConfig = {
           "branch-defaults": {
             default: {
-              environment: ebEnvironment,
+              environment: serviceDescriptor,
               group_suffix: serviceName
             }
           },
@@ -316,8 +196,8 @@ const wrapComponent = (component, context) => {
           cwd: appFolder,
           maxBuffer: 1024 * 500
         });
-        if (listEnv.stdout.indexOf(ebEnvironment) == -1) {
-          const createCommand = `eb create ${ebEnvironment} --elb-type application`;
+        if (listEnv.stdout.indexOf(serviceDescriptor) == -1) {
+          const createCommand = `eb create ${serviceDescriptor} --elb-type application`;
           await exec(createCommand, { cwd: appFolder, maxBuffer: 1024 * 500 });
         }
 
