@@ -79,6 +79,14 @@ base artifact types
 
 ### Providers
 
-Providers host Unstack services via Runtimes. Runtimes are conceptually self-contained compute stacks that are deployed with production-ready resources for a given provider. A Runtime builds on top of the tools of a provider, providing sensible defaults and conforming to Unstack standards, giving automatic interoperability.
+Providers are external services like AWS, Azure, or Heroku, that take some (or all) of code and config and help serve it to end users.
+
+Generally, Providers host Unstack services via Runtimes, but can also be used to configure/manage things like DNS, or to release new iOS builds.
+
+#### Runtimes
+
+Runtimes are conceptually self-contained compute stacks that are deployed with production-ready resources for a given provider. A Runtime builds on top of the tools of a provider, providing sensible defaults and conforming to Unstack standards, giving automatic interoperability.
 
 For example, an Unstack Service that outputs an an HTTP Artifact could be deployed on the `aws-elastic-beanstalk` Provider via the `docker-http` Runtime.
+
+#### Orchestrators

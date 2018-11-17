@@ -10,7 +10,7 @@
     "dist"
   ],
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "jest",
     "build": "babel src -d dist"
   },
   "author": "",
@@ -34,5 +34,9 @@
     "js-yaml": "^3.12.0",
     "yargs": "^12.0.1"
   },
-  "devDependencies": {}
+  "devDependencies": {
+    "babel-core": "^7.0.0-bridge.0",
+    "babel-jest": "^23.6.0",
+    "jest": "^23.6.0"
+  }
 }

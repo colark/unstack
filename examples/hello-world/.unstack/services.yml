@@ -2,3 +2,9 @@ context:
   type: context
   handler:
     name: env-context
+web:
+  handler:
+    name: react-web
+  provider:
+    name: aws-eb
+    runtime: docker-http
