@@ -4,10 +4,15 @@ NOTE: Unstack is in alpha and this README is a work in progress.
 
 Unstack is a framework centered around the belief that the development of a software platform should be sustainable.
 
-A sustainable software platform follows these rules:
+A sustainable software platform is one where its codebase and infrastructure should make it exceedingly easy for developers to deliver continued business-value over time, at any scale.
 
-1. A platform's codebase should be easy to develop further in the present _and_ be flexible enough to allow easy development in the future.
-2. For as long as possible, a team should focus on what makes their platform unique, not what keeps it running.
+To be sustainable, a platform must operate in a financially lean and technically flexible fashion.
+
+These are two principles that enable this:
+
+1. Human-centered UX -- especially for teams
+2. Declarative code -- when it matters
+   For as long as possible, a team's platform code should not be tied to or made aware of specific architectural patterns, tooling and providers.
 
 99 percent of software platforms today consists of:
 
@@ -20,7 +25,7 @@ Generally, those _actors_ use _UIs_ and _APIs_ to query or mutate a _data-store_
 With that fact in mind, to achieve the above rules, Unstack provides two main offerings:
 
 1. Unstack Core: easy-to-use and extensible tooling for developing, testing and deploying platform services (UIs, APIs, etc)
-2. Unstack Native: easy-to-adopt architectural patterns and related libraries that provide built-in scaling and unlock access to advanced platform-centric functionality.
+2. Unstack Managed: easy-to-adopt architectural patterns and related libraries that provide built-in scaling and unlock access to advanced platform-centric functionality.
 
 By just using Unstack Core, you get the following:
 
@@ -31,13 +36,19 @@ By just using Unstack Core, you get the following:
 
 The above can go a long way in reducing the resources required to build sustainable software.
 
-However to build a web-scale platform, more care must be taken in its architecture. That's where Unstack Native really shines.
+However to build a web-scale platform, more care must be taken in its architecture. That's where Unstack Managed really shines.
 
 _More to come on Native soon._
 
 ## Core
 
-## The development flow
+## The Development Flow
+
+1. Self-contained local development environment
+2. Production-like review environments
+3. Test-driven automated release cycle
+
+Via commands:
 
 1. `unstack install`
 2. `unstack start`
@@ -47,18 +58,20 @@ _More to come on Native soon._
 6. merge master, staging environment is updated
 7. manually or automatically approve deploy to production
 
-### Concepts
+### Technical concepts
 
-- Context
+- The Context Platform
   - Environments
   - Secrets
+  - Workflows
+  - Networking
 - Services
   - Components
   - Handlers
   - Middleware
+- Builders
 - Providers
   - Runtimes
-  - Orchestrators
 
 ### Services
 
@@ -66,9 +79,11 @@ A service:
 
 - has a type
 - is made up of a Component and a chosen Handler
-- produces artifacts during builds
+- produces a folder to be given to one or more builders.
 - inputs/outputs
 - defines inputs required from current context and outputs to add to current context
+
+### Services
 
 base artifact types
 
