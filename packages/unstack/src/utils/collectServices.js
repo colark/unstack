@@ -1,9 +1,9 @@
 const collectServices = (serviceDefinitions, parent = "") => {
   let services = [];
   for (const serviceName in serviceDefinitions) {
+    let location;
     const definition = serviceDefinitions[serviceName];
     if (definition.handler) {
-      let location;
       if (definition.type && definition.type == "context") {
       } else {
         location = `${parent}/${serviceName}`;
