@@ -44,7 +44,9 @@ const handleServiceWithContext = context => async (
       componentLocation: location
     });
 
-    const [handler, handlerLocation] = await handlerHelper.resolveHandler();
+    const [handler, handlerLocation] = await handlerHelper.resolveHandler({
+      definition
+    });
 
     if (handler) {
       outputProgressInfo(`found handler`);
@@ -53,7 +55,7 @@ const handleServiceWithContext = context => async (
         location
       });
 
-      handlerHelper.buildWorkingDirectory();
+      await handlerHelper.buildWorkingDirectory();
       handlerHelper.mergeDependencies();
       //wrap component
       const wrappedComponent = handler.wrapComponent(handlerHelper);

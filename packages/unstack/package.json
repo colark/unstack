@@ -1,6 +1,6 @@
 {
   "name": "unstack",
-  "version": "0.0.12-alpha.1",
+  "version": "0.0.12-alpha.3",
   "description": "",
   "preferGlobal": true,
   "bin": {

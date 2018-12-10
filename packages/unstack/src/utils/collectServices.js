@@ -9,6 +9,10 @@ const collectServices = (serviceDefinitions, parent = "") => {
         location = `${parent}/${serviceName}`;
       }
       services.push({ definition, location });
+    } else if (definition.commands) {
+      location = `${parent}/${serviceName}`;
+      definition.handler = { name: "self" };
+      services.push({ definition, location });
     } else {
       services = services.concat(collectServices(definition, serviceName));
     }

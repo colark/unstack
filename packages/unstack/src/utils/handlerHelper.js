@@ -5,16 +5,35 @@ const installDependenciesForPackage = require("./installDependenciesForPackage")
 const resolveLocalPath = require("./resolveLocalPath");
 const fs = require("fs");
 
+const buildSelfHandler = (localCommands = {}) => ({
+  wrapComponent: () => {
+    const handlerObject = {};
+    const commandTuples = Object.keys(localCommands).map(commandName => [
+      commandName,
+      localCommands[commandName]
+    ]);
+    for (const [name, command] of commandTuples) {
+      handlerObject[name] = async () => {
+        const { stdout, stderr } = await exec(command);
+        console.log(stdout, stderr);
+      };
+    }
+    return handlerObject;
+  }
+});
+
 const mergeDependencies = ({
   handlerLocation,
   componentLocation,
   tmpLocation
 }) => {
-  const handlerPackageJson = JSON.parse(
-    fs.readFileSync(handlerLocation + "/package.json", {
-      encoding: "utf-8"
-    })
-  );
+  const handlerPackageJson = handlerLocation
+    ? JSON.parse(
+        fs.readFileSync(handlerLocation + "/package.json", {
+          encoding: "utf-8"
+        })
+      )
+    : {};
 
   // to get es6 goodness via babel
   // const serviceDependencies = JSON.parse(
@@ -87,9 +106,11 @@ export default class HandlerHelper {
       cwd: process.cwd()
     });
 
-    await exec(`cp -R ${handlerLocation}/* ${workDir}`, {
-      cwd: process.cwd()
-    });
+    if (handlerLocation) {
+      await exec(`cp -R ${handlerLocation}/* ${workDir}`, {
+        cwd: process.cwd()
+      });
+    }
 
     // optional
     // await exec(`cp ${handlerLocation}/.babelrc ${workDir}`, {
@@ -131,44 +152,50 @@ export default class HandlerHelper {
   writeToWorkDir = (path, content) => {
     fs.writeFileSync(`${this.workingDirectory}/${path}`, content, "utf-8");
   };
-  resolveHandler = async () => {
-    const localHandlersLocation = process.env.LOCAL_HANDLERS_PATH
-      ? process.env.LOCAL_HANDLERS_PATH
-      : "./.unstack/handlers";
+  resolveHandler = async ({ definition }) => {
     let packageLocation;
     let handler;
-    try {
-      this.outputProgressInfo(`Attempting to load packaged handler`);
-      packageLocation = resolveLocalPath(
-        `./node_modules/unstack-${this.handlerName}`
-      );
-      const success = await installDependenciesForPackage(packageLocation, {
-        install: this.shouldInstall
-      });
-      if (success) {
-        handler = require(packageLocation);
-      } else {
-        throw new Error("no package");
-      }
-    } catch (err) {
+    const isSelfHandler = this.handlerName == "self";
+    if (!isSelfHandler) {
+      const localHandlersLocation = process.env.LOCAL_HANDLERS_PATH
+        ? process.env.LOCAL_HANDLERS_PATH
+        : "./.unstack/handlers";
       try {
-        this.outputProgressInfo(
-          `Attempting to load local handler because ${err.message}`
-        );
+        this.outputProgressInfo(`Attempting to load packaged handler`);
         packageLocation = resolveLocalPath(
-          `${localHandlersLocation}/${this.handlerName}`
+          `./node_modules/unstack-${this.handlerName}`
         );
         const success = await installDependenciesForPackage(packageLocation, {
           install: this.shouldInstall
         });
         if (success) {
           handler = require(packageLocation);
+        } else {
+          throw new Error("no package");
         }
       } catch (err) {
-        throw new Error(err);
+        try {
+          this.outputProgressInfo(
+            `Attempting to load local handler because ${err.message}`
+          );
+          packageLocation = resolveLocalPath(
+            `${localHandlersLocation}/${this.handlerName}`
+          );
+          const success = await installDependenciesForPackage(packageLocation, {
+            install: this.shouldInstall
+          });
+          if (success) {
+            handler = require(packageLocation);
+          }
+        } catch (err) {
+          throw new Error(err);
+        }
       }
     }
-    this.handlerLocation = packageLocation;
+    if (isSelfHandler) {
+      handler = buildSelfHandler(definition.commands);
+      this.handlerLocation = packageLocation;
+    }
     return [handler, packageLocation];
   };
   resolveComponent = async ({ definition, location }) => {

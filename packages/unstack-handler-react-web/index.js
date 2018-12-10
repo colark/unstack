@@ -10,12 +10,13 @@ const wrapComponent = helper => {
   const context = helper.getContext();
   const serviceDescriptor = helper.getServiceDescriptor();
   const serviceName = helper.getServiceName();
+
   return {
     start: async config => {
       const component = await helper.getComponent();
-      const handlerLocation = config.handler.location;
-      const componentLocation = `./${config.service.location}`;
       const appFolder = helper.getWorkingDirectoryPath();
+      const handlerLocation = helper.getHandlerLocation();
+      const componentLocation = helper.getComponentLocation();
 
       try {
         const babelFile = await exec("parcel build entry.unstack.js", {
@@ -48,16 +49,9 @@ const wrapComponent = helper => {
     deploy: config => {
       return new Promise(async (resolve, reject) => {
         console.log(
-          `starting deploy for service:${config.service.name} for env:${
-            context.environment.name
-          } on branch:${context.branch.name}`
+          `starting deploy for service ${serviceName} with service descriptor ${serviceDescriptor}`
         );
 
-        const serviceName = config.service.name;
-
-        const handlerLocation = config.handler.location;
-        const componentLocation = `./${config.service.location}`;
-        const appFolder = helper.getWorkingDirectoryPath();
         // BEGIN fill in Dockfile
         const dockerfileString = fs.readFileSync(
           handlerLocation + "/Dockerfile",
@@ -108,7 +102,7 @@ const wrapComponent = helper => {
         helper.writeToWorkDir("Dockerfile", evaluatedDockerfileString);
         // END fill in Dockerfile
 
-        // BEGIN ORCHESTRATION
+        // -----------BEGIN BUILDER STUFF---------------
 
         const parcelInstallCommand = `sudo npm install -g parcel-bundler`;
         const parcelInstall = await exec(parcelInstallCommand, {
@@ -162,8 +156,9 @@ const wrapComponent = helper => {
           `./node_modules/.bin/babel component -d compiled-component --copy-files --ignore "component/node_modules/**/*" ${sharedBabel}`,
           { cwd: appFolder, maxBuffer: 1024 * 500 }
         );
+        // -----------END BUILDER STUFF---------------
 
-        // start runtime stuff
+        // -----------BEGIN RUNTIME STUFF---------------
 
         const ebConfig = {
           "branch-defaults": {
@@ -218,7 +213,7 @@ const wrapComponent = helper => {
         });
         console.log(status.stdout);
 
-        // END ORCHESTRATION
+        // ----------END RUNTIME STUFF-------------
 
         const secretsString = status.stdout;
 

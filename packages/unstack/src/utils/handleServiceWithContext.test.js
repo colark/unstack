@@ -25,4 +25,19 @@ describe("context service types", () => {
       done();
     });
   });
+
+  describe("self handlers", () => {
+    it("uses a 'self' handler if commands are present on service", done => {
+      process.env.LOCAL_HANDLERS_PATH = "./fixtures/handlers";
+      process.env.COMPONENT_PATH_PREFIX = "./fixtures/test-platform";
+      serviceObject.definition.handler = { name: "self" };
+      serviceObject.definition.commands = { start: "cat package.json" };
+      const handleService = handleServiceWithContext(contextObject);
+      const promise = handleService(serviceObject);
+      promise.then(context => {
+        expect(context.secrets).toEqual({ hello: "hi" });
+        done();
+      });
+    });
+  });
 });
