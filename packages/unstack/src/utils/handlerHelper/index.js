@@ -1,9 +1,11 @@
 const util = require("util");
 const exec = util.promisify(require("child_process").exec);
-const installDependenciesForPackage = require("./installDependenciesForPackage")
+const installDependenciesForPackage = require("../installDependenciesForPackage")
   .default;
-const resolveLocalPath = require("./resolveLocalPath");
+const resolveLocalPath = require("../resolveLocalPath");
 const fs = require("fs");
+
+const isImplicitService = require("./methods/isImplicitService");
 
 const buildSelfHandler = (localCommands = {}) => ({
   wrapComponent: () => {
@@ -76,8 +78,10 @@ export default class HandlerHelper {
     branchName,
     contextObject,
     handlerLocation,
-    componentLocation
+    componentLocation,
+    fullContext
   }) {
+    this.fullContext = fullContext;
     this.handlerName = handlerName;
     this.shouldInstall = shouldInstall;
     this.branchName = branchName;
@@ -121,10 +125,16 @@ export default class HandlerHelper {
       cwd: process.cwd()
     });
   };
+  getContext = () => Object.assign({}, this.fullContext);
+  isImplicitService = definition =>
+    isImplicitService(this.handlerName, definition);
   copyFromHandler = () => {};
   copyFromComponent = () => {};
   getComponent = () => this.resolvedComponent;
   getServiceName = () => this.serviceDotName;
+  getWorkingDirectoryPath = () => this.workingDirectory;
+  getHandlerLocation = () => this.handlerLocation;
+  getComponentLocation = () => this.componentLocation;
   getServiceDescriptor = () => {
     return `${this.serviceName.split(".").join("")}-${
       this.environmentName == "review"
@@ -194,30 +204,30 @@ export default class HandlerHelper {
     }
     if (isSelfHandler) {
       handler = buildSelfHandler(definition.commands);
-      this.handlerLocation = packageLocation;
     }
+    this.handlerLocation = packageLocation;
     return [handler, packageLocation];
   };
   resolveComponent = async ({ definition, location }) => {
-    let componentLocation;
-    if (definition.type == "context") {
+    if (!this.isImplicitService(definition)) {
+      const componentLocation = resolveLocalPath(`./${location}`);
+      const success = await installDependenciesForPackage(componentLocation);
+      this.outputProgressInfo(
+        `Component dependencies installed ${
+          success ? "successfully" : "unsuccessfully"
+        }.`
+      );
+      if (success || !componentLocation) {
+        const component = componentLocation
+          ? await require(componentLocation).default
+          : {};
+        this.outputProgressInfo(`LOADED COMPONENT`);
+        this.resolvedComponent = component;
+        return component;
+      }
     } else {
-      componentLocation = resolveLocalPath(`./${location}`);
-    }
-
-    const success = await installDependenciesForPackage(componentLocation);
-    this.outputProgressInfo(
-      `Component dependencies installed ${
-        success ? "successfully" : "unsuccessfully"
-      }.`
-    );
-    if (success || !componentLocation) {
-      const component = componentLocation
-        ? await require(componentLocation).default
-        : {};
-      this.outputProgressInfo(`LOADED COMPONENT`);
-      this.resolvedComponent = component;
-      return component;
+      this.resolvedComponent = {};
+      return this.resolvedComponent;
     }
   };
 }

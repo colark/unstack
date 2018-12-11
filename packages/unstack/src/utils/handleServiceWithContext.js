@@ -2,7 +2,7 @@ const util = require("util");
 const exec = util.promisify(require("child_process").exec);
 const lodash = require("lodash");
 const resolveLocalPath = require("./resolveLocalPath");
-const HandlerHelper = require("./HandlerHelper").default;
+const HandlerHelper = require("./handlerHelper").default;
 
 const handleServiceWithContext = context => async (
   { definition, location },
@@ -41,7 +41,8 @@ const handleServiceWithContext = context => async (
       environmentName: context.environment.name,
       branchName: context.branch.name,
       contextObject: context,
-      componentLocation: location
+      componentLocation: location,
+      fullContext: context
     });
 
     const [handler, handlerLocation] = await handlerHelper.resolveHandler({
@@ -54,10 +55,14 @@ const handleServiceWithContext = context => async (
         definition,
         location
       });
+      console.log(definition);
+      // only run on "explicit" services, so not context, or self
+      if (!handlerHelper.isImplicitService(definition)) {
+        await handlerHelper.buildWorkingDirectory();
+        handlerHelper.mergeDependencies();
+      }
 
-      await handlerHelper.buildWorkingDirectory();
-      handlerHelper.mergeDependencies();
-      //wrap component
+      // wrap component
       const wrappedComponent = handler.wrapComponent(handlerHelper);
 
       const commandConfig = {
