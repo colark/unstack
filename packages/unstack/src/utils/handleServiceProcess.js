@@ -26,17 +26,23 @@ const serviceFolderIsSame = async serviceName => {
   return newServiceHash == existingServiceHash;
 };
 
-process.on("message", async ({ name, info, fullRebuild }) => {
-  const context = contextStore.read();
-
-  const shouldRebuild = !(await serviceFolderIsSame(name));
-
-  if (fullRebuild || shouldRebuild) {
-    const newContext = await handleServiceWithContext(context)(
-      info,
-      shouldRebuild
-    );
-    contextStore.write(newContext);
+process.on("message", async ({ name, info, fullRebuild, command }) => {
+  if (command) {
+    if (command == "killRequest") {
+      process.send({ command: "killResponse", value: true });
+    }
+  } else {
+    if (name) {
+      const context = contextStore.read();
+      const shouldRebuild = !(await serviceFolderIsSame(name));
+      if (fullRebuild || shouldRebuild) {
+        const newContext = await handleServiceWithContext(context)(
+          info,
+          shouldRebuild
+        );
+        contextStore.write(newContext);
+      }
+      process.send({ command: "done" });
+    }
   }
-  process.send({ command: "done" });
 });

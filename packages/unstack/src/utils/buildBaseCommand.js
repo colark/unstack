@@ -32,6 +32,7 @@ module.exports = ({ name, environment, options = {} }) => async () => {
     command: {
       name
     },
+    config,
     environment: {
       name: environment
     },
@@ -88,42 +89,72 @@ module.exports = ({ name, environment, options = {} }) => async () => {
 
   const threadParameters = [];
   const threadOptions = {
-    stdio: ["inherit", "inherit", "inherit", "ipc"],
-    silent: true
+    stdio: ["pipe", "pipe", "pipe", "ipc"]
   };
 
   const serviceThreads = [];
   const watchedServices = new Set();
 
   const tempThreads = {};
+
+  const registerHandlers = ({
+    newThread,
+    withHandlers,
+    tempThreads,
+    dotName
+  }) => {
+    const onMessage = message => {
+      if (message.command == "killResponse") {
+        if (message.value == true) {
+          const currentThread = tempThreads[dotName];
+          currentThread.kill();
+        }
+      }
+    };
+    newThread.stdout.on("data", data => process.stdout.write(data.toString()));
+    newThread.stderr.on("data", data => process.stderr.write(data.toString()));
+    newThread.on("message", onMessage);
+    if (context.command.name == "start") {
+      newThread.on("exit", () => withHandlers(dotName));
+    }
+  };
+
+  const withHandlers = function(dotName) {
+    const newThread = fork(
+      "./node_modules/unstack/dist/utils/handleServiceProcess",
+      threadParameters,
+      threadOptions
+    );
+    tempThreads[dotName] = newThread;
+    newThread.send({
+      name: dotName,
+      info: servicesObject[dotName],
+      fullRebuild: false
+    });
+
+    registerHandlers({
+      newThread,
+      withHandlers,
+      tempThreads,
+      dotName
+    });
+  };
+
   const enableWatcher = (dotName, currentThread) => {
     tempThreads[dotName] = currentThread;
     if (!watchedServices.has(dotName)) {
       chokidar
         .watch(dotName.split(".").join("/"), { ignored: /(^|[\/\\])\../ })
         .on("change", path => {
-          const thread = tempThreads[dotName];
-          thread.on("exit", function() {
-            const newThread = fork(
-              "./node_modules/unstack/dist/utils/handleServiceProcess",
-              threadParameters,
-              threadOptions
-            );
-            tempThreads[dotName] = newThread;
-            newThread.send({
-              name: dotName,
-              info: servicesObject[dotName],
-              fullRebuild: false
-            });
-            newThread.on("message", message => {
-              if (message.command == "done") {
-                enableWatcher(dotName, newThread);
-              }
-            });
+          const currentThread = tempThreads[dotName];
+          currentThread.send({
+            name: dotName,
+            info: servicesObject[dotName],
+            command: "killRequest"
           });
-          thread.kill();
         });
       watchedServices.add(dotName);
+      currentThread.on("exit", () => withHandlers(dotName));
     }
   };
 
@@ -153,6 +184,7 @@ module.exports = ({ name, environment, options = {} }) => async () => {
             threadParameters,
             threadOptions
           );
+
           thread.on("message", message => {
             if (message.command == "done") {
               remainingServices.delete(dotName) &&
@@ -162,6 +194,14 @@ module.exports = ({ name, environment, options = {} }) => async () => {
                 : thread.kill();
             }
           });
+
+          registerHandlers({
+            newThread: thread,
+            withHandlers,
+            tempThreads,
+            dotName
+          });
+
           thread.send({ name: dotName, info: serviceInfo, fullRebuild: true });
           serviceThreads.push(thread);
         }

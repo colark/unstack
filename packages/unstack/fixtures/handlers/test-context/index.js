@@ -1,7 +1,7 @@
 const util = require("util");
 const exec = util.promisify(require("child_process").exec);
 
-const wrapComponent = (_, context) => {
+const wrapComponent = () => {
   return {
     provideContext: async () => {
       return new Promise(async (resolve, reject) => {

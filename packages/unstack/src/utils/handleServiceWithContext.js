@@ -11,7 +11,7 @@ const handleServiceWithContext = context => async (
   let serviceDotName;
 
   const outputProgressInfo = (...toLog) => {
-    console.log(serviceDotName, ": ", ...toLog);
+    console.log(`${serviceDotName}#${context.command.name}`, ": ", ...toLog);
   };
 
   const mergeServiceContext = serviceContext => {
@@ -33,7 +33,17 @@ const handleServiceWithContext = context => async (
   return new Promise(async (resolve, reject) => {
     //load handler from package, or locally
     const handlerName = definition.handler.name;
+    const serviceType = definition.type;
     const shouldInstall = context.command.name == "install";
+
+    const providerName = context.config.targets[serviceType];
+
+    const runtime = providerName
+      ? require(resolveLocalPath(
+          `./.unstack/providers/${providerName}/runtimes/${serviceType}`
+        ))
+      : null;
+
     const handlerHelper = new HandlerHelper({
       handlerName,
       serviceDotName,
@@ -42,7 +52,9 @@ const handleServiceWithContext = context => async (
       branchName: context.branch.name,
       contextObject: context,
       componentLocation: location,
-      fullContext: context
+      fullContext: context,
+      shouldRebuild,
+      runtime
     });
 
     const [handler, handlerLocation] = await handlerHelper.resolveHandler({
@@ -89,9 +101,22 @@ const handleServiceWithContext = context => async (
         if (!context.services[serviceDotName]) {
           context.services[serviceDotName] = {};
         }
-        context.services[serviceDotName].outputs = await wrappedComponent[
-          context.command.name
-        ](commandConfig);
+        if (context.command.name == "deploy") {
+          console.log(
+            `starting deploy for service:${serviceDotName} for env:${
+              context.environment.name
+            } on branch:${context.branch.name}`
+          );
+        }
+
+        try {
+          context.services[serviceDotName].outputs = await wrappedComponent[
+            context.command.name
+          ](commandConfig);
+        } catch (e) {
+          console.log(e);
+          throw new Error(e);
+        }
 
         const outputs = context.services[serviceDotName].outputs || {};
         // print Outputs

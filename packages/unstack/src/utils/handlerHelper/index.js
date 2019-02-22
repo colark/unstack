@@ -6,6 +6,7 @@ const resolveLocalPath = require("../resolveLocalPath");
 const fs = require("fs");
 
 const isImplicitService = require("./methods/isImplicitService");
+const makeBuilderHelper = require("../builderHelper");
 
 const buildSelfHandler = (localCommands = {}) => ({
   wrapComponent: () => {
@@ -37,12 +38,11 @@ const mergeDependencies = ({
       )
     : {};
 
-  // to get es6 goodness via babel
-  // const serviceDependencies = JSON.parse(
-  //   fs.readFileSync(handlerLocation + "/service-dependencies.json", {
-  //     encoding: "utf-8"
-  //   })
-  // );
+  const serviceDependencies = JSON.parse(
+    fs.readFileSync(handlerLocation + "/service-dependencies.json", {
+      encoding: "utf-8"
+    })
+  );
 
   const componentPackageJson = JSON.parse(
     fs.readFileSync(componentLocation + "/package.json", {
@@ -54,8 +54,8 @@ const mergeDependencies = ({
   componentPackageJson.dependencies = Object.assign(
     {},
     handlerPackageJson.dependencies,
-    componentPackageJson.dependencies
-    //serviceDependencies
+    componentPackageJson.dependencies,
+    serviceDependencies
   );
 
   componentPackageJson.name = `${handlerPackageJson.name}.${
@@ -79,7 +79,9 @@ export default class HandlerHelper {
     contextObject,
     handlerLocation,
     componentLocation,
-    fullContext
+    fullContext,
+    shouldRebuild,
+    runtime
   }) {
     this.fullContext = fullContext;
     this.handlerName = handlerName;
@@ -87,6 +89,8 @@ export default class HandlerHelper {
     this.branchName = branchName;
     this.serviceDotName = serviceDotName;
     this.serviceName = serviceDotName;
+    this.shouldRebuild = shouldRebuild;
+    this.runtime = runtime;
     this.componentLocation = `${
       process.env.COMPONENT_PATH_PREFIX
         ? process.env.COMPONENT_PATH_PREFIX + "/"
@@ -99,12 +103,17 @@ export default class HandlerHelper {
     this.workingDirectory = `./.unstack/tmp/working/${
       contextObject.command.name
     }/${this.serviceName}`;
+    this.builderHelper = makeBuilderHelper();
   }
   buildWorkingDirectory = async () => {
     const workDir = this.workingDirectory;
     const handlerLocation = this.handlerLocation;
     const componentLocation = `./${this.componentLocation}`;
-    await exec(`rm -rf ${workDir}`, { cwd: process.cwd() });
+
+    if (this.shouldRebuild) {
+      await exec(`rm -rf ${workDir}`, { cwd: process.cwd() });
+    }
+
     const buildAppFolderCommand = `mkdir -p ${workDir}`;
     const buildAppFolder = await exec(buildAppFolderCommand, {
       cwd: process.cwd()
@@ -130,6 +139,13 @@ export default class HandlerHelper {
     isImplicitService(this.handlerName, definition);
   copyFromHandler = () => {};
   copyFromComponent = () => {};
+  copyToLocalDirectory = async ({ from, to }) => {
+    await exec(`cp -R ${from} ${this.workingDirectory}/${to}`, {
+      cwd: process.cwd()
+    });
+  };
+  getBuilders = () => this.builderHelper.collectBuilders();
+  getRuntime = () => this.runtime;
   getComponent = () => this.resolvedComponent;
   getServiceName = () => this.serviceDotName;
   getWorkingDirectoryPath = () => this.workingDirectory;
@@ -154,6 +170,14 @@ export default class HandlerHelper {
       tmpLocation: this.workingDirectory
     });
   };
+  makeLocalDirectory = async path => {
+    const buildGeneratedFolderCommand = `mkdir -p ${
+      this.workingDirectory
+    }/${path}`;
+    await exec(buildGeneratedFolderCommand, {
+      cwd: process.cwd()
+    });
+  };
   readFromWorkDir = path => {
     return fs.readFileSync(`${this.workingDirectory}/${path}`, {
       encoding: "utf-8"
@@ -175,9 +199,10 @@ export default class HandlerHelper {
         packageLocation = resolveLocalPath(
           `./node_modules/unstack-${this.handlerName}`
         );
-        const success = await installDependenciesForPackage(packageLocation, {
-          install: this.shouldInstall
-        });
+        const success = await installDependenciesForPackage(
+          packageLocation,
+          this.shouldInstall
+        );
         if (success) {
           handler = require(packageLocation);
         } else {
@@ -191,9 +216,10 @@ export default class HandlerHelper {
           packageLocation = resolveLocalPath(
             `${localHandlersLocation}/${this.handlerName}`
           );
-          const success = await installDependenciesForPackage(packageLocation, {
-            install: this.shouldInstall
-          });
+          const success = await installDependenciesForPackage(
+            packageLocation,
+            this.shouldInstall
+          );
           if (success) {
             handler = require(packageLocation);
           }
