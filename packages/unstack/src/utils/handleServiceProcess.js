@@ -25,21 +25,29 @@ const serviceFolderIsSame = async serviceName => {
   cacheStore.write(cache);
   return newServiceHash == existingServiceHash;
 };
-
+let onSourceChanges = {};
 process.on("message", async ({ name, info, fullRebuild, command }) => {
   if (command) {
     if (command == "killRequest") {
       process.send({ command: "killResponse", value: true });
+    }
+    if (command == "sourceChanged") {
+      const onSourceChange = onSourceChanges[name];
+      if (onSourceChange) {
+        console.log(await onSourceChange());
+      }
     }
   } else {
     if (name) {
       const context = contextStore.read();
       const shouldRebuild = !(await serviceFolderIsSame(name));
       if (fullRebuild || shouldRebuild) {
-        const newContext = await handleServiceWithContext(context)(
+        const localState = {};
+        const newContext = await handleServiceWithContext(context, localState)(
           info,
           shouldRebuild
         );
+        onSourceChanges[name] = localState.onServiceChange;
         contextStore.write(newContext);
       }
       process.send({ command: "done" });

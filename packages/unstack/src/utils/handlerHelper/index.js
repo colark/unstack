@@ -81,7 +81,8 @@ export default class HandlerHelper {
     componentLocation,
     fullContext,
     shouldRebuild,
-    runtime
+    runtime,
+    providerConfig
   }) {
     this.fullContext = fullContext;
     this.handlerName = handlerName;
@@ -104,6 +105,7 @@ export default class HandlerHelper {
       contextObject.command.name
     }/${this.serviceName}`;
     this.builderHelper = makeBuilderHelper();
+    this.providerConfig = providerConfig;
   }
   buildWorkingDirectory = async () => {
     const workDir = this.workingDirectory;
@@ -146,12 +148,13 @@ export default class HandlerHelper {
   };
   getBuilders = () => this.builderHelper.collectBuilders();
   getRuntime = () => this.runtime;
+  getProviderConfig = () => this.providerConfig;
   getComponent = () => this.resolvedComponent;
   getServiceName = () => this.serviceDotName;
   getWorkingDirectoryPath = () => this.workingDirectory;
   getHandlerLocation = () => this.handlerLocation;
   getComponentLocation = () => this.componentLocation;
-  getServiceDescriptor = () => {
+  getServiceDescriptor = ({ includeServiceName }) => {
     return `${this.serviceName.split(".").join("")}-${
       this.environmentName == "review"
         ? this.branchName.split("-").join("")
@@ -162,6 +165,21 @@ export default class HandlerHelper {
       .replace(/\$/, "")
       .replace(/@/, "")
       .substring(0, 38);
+  };
+  getServiceDescriptor = ({ includeServiceName } = { includeServiceName: true }) => {
+    const ebEnvironment = `${
+      includeServiceName ? this.serviceName.split(".").join("") + "-" : ""
+    }${
+      this.environmentName == "review"
+        ? this.branchName.split("-").join("")
+        : this.environmentName
+    }`
+      .replace(/_/, "")
+      .replace(/\//g, "")
+      .replace(/\$/, "")
+      .replace(/@/, "")
+      .substring(0, 38);
+    return ebEnvironment;
   };
   mergeDependencies = () => {
     mergeDependencies({

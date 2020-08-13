@@ -3,8 +3,26 @@ const exec = util.promisify(require("child_process").exec);
 const lodash = require("lodash");
 const resolveLocalPath = require("./resolveLocalPath");
 const HandlerHelper = require("./handlerHelper").default;
+const path = require('path');
+const fs = require('fs');
 
-const handleServiceWithContext = context => async (
+
+const makeRunCommand = cwd => async commandString => {
+  try {
+    // run eb deploy
+    const command = commandString;
+    const result = await exec(command, { cwd, maxBuffer: 1024 * 500 });
+    console.log(result.stdout);
+    console.log(result.stderr);
+    return result;
+  } catch (e) {
+    console.log(e);
+    console.trace(e);
+    throw new Error(e);
+  }
+};
+
+const handleServiceWithContext = (context, localState = {}) => async (
   { definition, location },
   shouldRebuild
 ) => {
@@ -16,6 +34,16 @@ const handleServiceWithContext = context => async (
 
   const mergeServiceContext = serviceContext => {
     if (definition.type == "context") {
+      try {
+        const providerConfig = require(`${path.resolve(
+          process.cwd(),
+          './.unstack/providerConfig.js'
+        )}`);
+
+        context.config.providers = providerConfig;
+      } catch (e) {
+        // no providerConfig, do nothing
+      }
       context = Object.assign(context, serviceContext);
     } else {
       const existingContext = context.services[serviceDotName];
@@ -38,6 +66,9 @@ const handleServiceWithContext = context => async (
 
     const providerName = context.config.targets[serviceType];
 
+    const perEnv = (providerName ? context.config.providers[providerName][context.environment.name] : {}) || {};
+    const providerConfig = perEnv[serviceDotName] ? perEnv[serviceDotName] : {};
+
     const runtime = providerName
       ? require(resolveLocalPath(
           `./.unstack/providers/${providerName}/runtimes/${serviceType}`
@@ -54,7 +85,8 @@ const handleServiceWithContext = context => async (
       componentLocation: location,
       fullContext: context,
       shouldRebuild,
-      runtime
+      runtime,
+      providerConfig
     });
 
     const [handler, handlerLocation] = await handlerHelper.resolveHandler({
@@ -126,6 +158,11 @@ const handleServiceWithContext = context => async (
           outputKeys.forEach(key => outputProgressInfo(key, ":", outputs[key]));
         }
       }
+
+      const onComponentSourceChange = async () => {
+        await makeRunCommand(process.cwd())(`rsync -zrqhi ${handlerHelper.getComponentLocation()}/ ${handlerHelper.getWorkingDirectoryPath()}/component`)
+      }
+      localState.onServiceChange = onComponentSourceChange;
       resolve(context);
     }
     reject("no handler found");

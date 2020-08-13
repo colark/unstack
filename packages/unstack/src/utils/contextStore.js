@@ -2,6 +2,7 @@ const contextDirectory = "./.unstack/tmp/cache/";
 const contextLocation = contextDirectory + "context.json";
 const fs = require("fs");
 const mkdirp = require("mkdirp");
+const path = require("path");
 
 module.exports = {
   write: rawContext => {
@@ -15,8 +16,11 @@ module.exports = {
         fs.readFileSync(contextLocation, { encoding: "utf-8" })
       );
     } catch (_) {
-      context = {};
+      context = {
+        config: {}
+      };
     }
+
     return context;
   }
 };

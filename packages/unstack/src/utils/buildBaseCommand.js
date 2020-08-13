@@ -13,6 +13,21 @@ const chokidar = require("chokidar");
 
 const contextStore = require("./contextStore");
 
+const makeRunCommand = cwd => async commandString => {
+  try {
+    // run eb deploy
+    const command = commandString;
+    const result = await exec(command, { cwd, maxBuffer: 1024 * 500 });
+    console.log(result.stdout);
+    console.log(result.stderr);
+    return result;
+  } catch (e) {
+    console.log(e);
+    console.trace(e);
+    throw new Error(e);
+  }
+};
+
 const readUnstack = name =>
   yaml.safeLoad(
     fs.readFileSync(resolveLocalPath(`./.unstack/${name}.yml`), {
@@ -143,15 +158,26 @@ module.exports = ({ name, environment, options = {} }) => async () => {
   const enableWatcher = (dotName, currentThread) => {
     tempThreads[dotName] = currentThread;
     if (!watchedServices.has(dotName)) {
+      const servicePath = dotName.split(".").join("/");
       chokidar
-        .watch(dotName.split(".").join("/"), { ignored: /(^|[\/\\])\../ })
+        .watch(servicePath, { ignored: /(^|[\/\\])\../ })
         .on("change", path => {
           const currentThread = tempThreads[dotName];
-          currentThread.send({
-            name: dotName,
-            info: servicesObject[dotName],
-            command: "killRequest"
-          });
+          const serviceInfo = servicesObject[dotName];
+          if (serviceInfo.definition.selfReloading) {
+            currentThread.send({
+              name: dotName,
+              info: serviceInfo,
+              command: "sourceChanged"
+            });
+
+          } else {
+            currentThread.send({
+              name: dotName,
+              info: serviceInfo,
+              command: "killRequest"
+            });
+          }
         });
       watchedServices.add(dotName);
       currentThread.on("exit", () => withHandlers(dotName));
